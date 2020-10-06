@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package account.v1;
+option go_package = "github.com/ihtkas/farm/account/v1;accountpb";
+
+message User {
+    uint64 id = 1;
+    string name = 2;
+}
+
+
+
+// from repo root directory
+// protoc -I proto/ proto/account/v1/user.proto --go_out=paths=source_relative:. 

@@ -1,0 +1,12 @@
+syntax = "proto3";
+package seller.v1;
+option go_package = "github.com/ihtkas/farm/seller/v1;sellerpb";
+
+import "account/v1/user.proto";
+
+message Profile {
+    account.v1.User user = 1;
+}
+
+// from repo root directory
+// protoc -I proto/ proto/seller/v1/seller.proto --go_out=paths=source_relative:.
