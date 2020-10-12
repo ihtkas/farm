@@ -1,10 +1,16 @@
-package account
+package seller
 
 import (
+	"fmt"
+	"io"
 	"net/http"
+	"net/http/pprof"
+	"strings"
 
 	"github.com/gocql/gocql"
-	"github.com/ihtkas/farm/utils"
+	"github.com/golang/glog"
+	sellerpb "github.com/ihtkas/farm/seller/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Manager implements the http.Handler interface and manages all APIs for account management
@@ -16,12 +22,12 @@ type Manager struct {
 }
 
 func (m *Manager) initDefaultConf() {
-	m.addr = ":8081"
+	m.addr = ":8082"
 	m.cassandraClusterHosts = []string{"127.0.0.1"}
 	m.cassandraKeyspace = "farm"
 }
 
-// Starts an Manager service
+// Start first initializes with default configuration and overrides with input options. Then starts a http server.
 func (m *Manager) Start(opts ...Option) error {
 	m.initDefaultConf()
 
@@ -56,7 +62,7 @@ func (m *Manager) initStorage() error {
 	}
 	m.session = session
 	return session.Query(`
-	CREATE TABLE IF NOT EXISTS user (
+	CREATE TABLE IF NOT EXISTS product (
 		id int PRIMARY KEY, 
 		name varchar
 	)
@@ -66,40 +72,66 @@ func (m *Manager) initStorage() error {
 
 // ServeHTTP handles all http APIs for Account management
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
+	glog.Errorln(r.URL.Path)
 	switch r.URL.Path {
-	case "account/user/add":
-		m.addUserReq(w, r)
+	case "/seller/product/add":
+		m.addProductReq(w, r)
 	default:
+		if strings.HasPrefix(r.URL.Path, "/debug") {
+			arr := strings.Split(r.URL.Path, "/")
+			if len(arr) >= 4 {
+				glog.Errorln("pprof", arr[3])
+				pprof.Handler(arr[3]).ServeHTTP(w, r)
+				return
+			}
+		}
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 	}
 }
 
-func (m *Manager) addUserReq(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
+func (m *Manager) addProductReq(w http.ResponseWriter, r *http.Request) {
+
+	body := make([]byte, 1<<10)
+	n, err := r.Body.Read(body)
+
+	glog.Errorln(string(body[:n]), n, err)
+	if err != nil && err != io.EOF {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	username, err := utils.GetStringParam(r.Form, "username")
+	product := &sellerpb.Product{}
+
+	err = protojson.Unmarshal(body[:n], product)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	id, err := utils.GetIntegerParam(r.Form, "id")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	err = m.addUser(username, id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	fmt.Println(product)
+	// err := r.ParseForm()
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
+	// username, err := utils.GetStringParam(r.Form, "username")
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
+
+	// id, err := utils.GetIntegerParam(r.Form, "id")
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
+	// err = m.addUser(username, id)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 }
 
-func (m *Manager) addUser(name string, id int64) error {
+func (m *Manager) addProduct(name string, id int64) error {
 	return m.session.Query(`
 	INSERT INTO user (id, name) values (?, ?)	
 	`, id, name,

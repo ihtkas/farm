@@ -1,4 +1,4 @@
-package account
+package transporter
 
 import (
 	"net/http"
@@ -16,7 +16,7 @@ type Manager struct {
 }
 
 func (m *Manager) initDefaultConf() {
-	m.addr = ":8081"
+	m.addr = ":8084"
 	m.cassandraClusterHosts = []string{"127.0.0.1"}
 	m.cassandraKeyspace = "farm"
 }
@@ -68,7 +68,7 @@ func (m *Manager) initStorage() error {
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.URL.Path {
-	case "account/user/add":
+	case "/user/add":
 		m.addUserReq(w, r)
 	default:
 		http.Error(w, "Invalid path", http.StatusBadRequest)

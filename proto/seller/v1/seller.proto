@@ -3,9 +3,20 @@ package seller.v1;
 option go_package = "github.com/ihtkas/farm/seller/v1;sellerpb";
 
 import "account/v1/user.proto";
+import "google/protobuf/timestamp.proto";
 
 message Profile {
     account.v1.User user = 1;
+}
+
+message Product {
+    string name = 1;
+    google.protobuf.Timestamp expiry = 2;
+    uint32 quantity = 3;
+    uint32 min_quantity = 4;
+    uint32 price_per_quantity = 5;
+    string description = 6;
+    repeated string tags = 7;
 }
 
 // from repo root directory
