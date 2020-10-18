@@ -21,7 +21,7 @@ func (m *Manager) initDefaultConf() {
 	m.cassandraKeyspace = "farm"
 }
 
-// Starts an Manager service
+// Start starts a Account Manager service
 func (m *Manager) Start(opts ...Option) error {
 	m.initDefaultConf()
 

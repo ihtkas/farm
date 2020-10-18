@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package account.v1;
+option go_package = "github.com/ihtkas/farm/account/v1;accountpb";
+
+service AccountService {
+    rpc ValidateUser(ValidateUserRequest) returns (ValidateUserResponse) {}
+}
+
+message ValidateUserRequest {
+    uint64 id = 1;
+}
+
+message ValidateUserResponse {}
+
+// protoc -I. --go_out=module=github.com/ihtkas/farm:. --go-grpc_out=module=github.com/ihtkas/farm:. proto/account/v1/auth.proto

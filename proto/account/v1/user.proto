@@ -11,4 +11,4 @@ message User {
 
 
 // from repo root directory
-// protoc -I proto/ proto/account/v1/user.proto --go_out=paths=source_relative:. 
+// protoc -I. --go_out=module=github.com/ihtkas/farm:. proto/account/v1/user.proto

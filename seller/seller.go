@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"strings"
+	"time"
 
-	"github.com/gocql/gocql"
+	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/ihtkas/farm/seller/store"
+	"github.com/ihtkas/farm/utils"
+
 	"github.com/golang/glog"
 	sellerpb "github.com/ihtkas/farm/seller/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -18,13 +22,24 @@ type Manager struct {
 	addr                  string
 	cassandraClusterHosts []string
 	cassandraKeyspace     string
-	session               *gocql.Session
+	store                 Storage
+
+	minExpiryDur time.Duration
+}
+
+// Storage has functions required to store, read and manipulate Seller information
+type Storage interface {
+	Init(clusterHosts []string, keyspace string) error
+	AddProduct(p *sellerpb.Product) error
 }
 
 func (m *Manager) initDefaultConf() {
 	m.addr = ":8082"
 	m.cassandraClusterHosts = []string{"127.0.0.1"}
 	m.cassandraKeyspace = "farm"
+	m.store = &store.Cassandra{}
+	m.minExpiryDur = 12 * time.Hour
+
 }
 
 // Start first initializes with default configuration and overrides with input options. Then starts a http server.
@@ -37,7 +52,7 @@ func (m *Manager) Start(opts ...Option) error {
 			return err
 		}
 	}
-	err := m.initStorage()
+	err := m.store.Init(m.cassandraClusterHosts, m.cassandraKeyspace)
 	if err != nil {
 		return err
 	}
@@ -50,23 +65,6 @@ func (m *Manager) Start(opts ...Option) error {
 	// }
 	s := &http.Server{Addr: m.addr, Handler: m}
 	return s.ListenAndServe()
-
-}
-
-func (m *Manager) initStorage() error {
-	cluster := gocql.NewCluster(m.cassandraClusterHosts...)
-	cluster.Keyspace = m.cassandraKeyspace
-	session, err := cluster.CreateSession()
-	if err != nil {
-		return err
-	}
-	m.session = session
-	return session.Query(`
-	CREATE TABLE IF NOT EXISTS product (
-		id int PRIMARY KEY, 
-		name varchar
-	)
-	`).Exec()
 
 }
 
@@ -108,32 +106,18 @@ func (m *Manager) addProductReq(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println(product)
-	// err := r.ParseForm()
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
-	// username, err := utils.GetStringParam(r.Form, "username")
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
+	minExpiry := time.Now().Add(m.minExpiryDur)
+	validation.ValidateStruct(&product,
+		validation.Field(&product.Name, validation.Required, validation.Length(5, 50)),
+		validation.Field(&product.Expiry, validation.Required, utils.TimeRange(minExpiry, time.Time{})),
+		validation.Field(&product.Quantity, validation.Required),
+		validation.Field(&product.PricePerQuantity, validation.Required),
+		validation.Field(&product.MinQuantity, validation.Required),
+	)
 
-	// id, err := utils.GetIntegerParam(r.Form, "id")
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
-	// err = m.addUser(username, id)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
-}
-
-func (m *Manager) addProduct(name string, id int64) error {
-	return m.session.Query(`
-	INSERT INTO user (id, name) values (?, ?)	
-	`, id, name,
-	).Exec()
+	err = m.store.AddProduct(product)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 }
