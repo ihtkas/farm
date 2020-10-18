@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/golang/glog"
@@ -21,24 +22,24 @@ func main() {
 func timer(ctx context.Context, interval time.Duration, alertmp3 string) {
 	tick := time.NewTicker(interval)
 	ping := time.NewTicker(time.Minute)
-	glog.Errorln("Next alert at ", time.Now().Add(interval).Format("3:04:05 PM"))
-	time.Sleep(time.Second * 10)
-	func() {
-		f, err := os.Open(alertmp3)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer f.Close()
-		streamer, format, err := mp3.Decode(f)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer streamer.Close()
+	// glog.Errorln("Next alert at ", time.Now().Add(interval).Format("3:04:05 PM"))
+	// time.Sleep(time.Second * 10)
+	// func() {
+	// 	f, err := os.Open(alertmp3)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	defer f.Close()
+	// 	streamer, format, err := mp3.Decode(f)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	defer streamer.Close()
 
-		speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-		speaker.Play(streamer)
-		glog.Errorln("Next alert at ", time.Now().Add(interval).Format("3:04:05 PM"))
-	}()
+	// 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	// 	speaker.Play(streamer)
+	// 	glog.Errorln("Next alert at ", time.Now().Add(interval).Format("3:04:05 PM"))
+	// }()
 	for {
 
 		select {
@@ -61,6 +62,12 @@ func timer(ctx context.Context, interval time.Duration, alertmp3 string) {
 
 				speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 				speaker.Play(streamer)
+				done := make(chan bool)
+				speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+					done <- true
+				})))
+				speaker.Close()
+				<-done
 				glog.Errorln("Next alert at ", time.Now().Add(interval).Format("3:04:05 PM"))
 			}()
 		}

@@ -44,7 +44,7 @@ func (s *Cassandra) Init(clusterHosts []string, keyspace string) error {
 	s.session = session
 	return session.Query(`
 	CREATE TABLE IF NOT EXISTS product (
-		id int PRIMARY KEY, 
+		id UUID PRIMARY KEY, 
 		name varchar,
 		expiry duration,
 		quantity int,

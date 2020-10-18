@@ -57,7 +57,7 @@ func (m *Manager) initStorage() error {
 	m.session = session
 	return session.Query(`
 	CREATE TABLE IF NOT EXISTS user (
-		id int PRIMARY KEY, 
+		id UUID PRIMARY KEY, 
 		name varchar
 	)
 	`).Exec()
