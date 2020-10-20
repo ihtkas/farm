@@ -19,31 +19,31 @@ import (
 
 // Manager implements the http.Handler interface and manages all APIs for account management
 type Manager struct {
-	addr                  string
-	cassandraClusterHosts []string
-	cassandraKeyspace     string
-	store                 Storage
-
+	addr         string
+	store        Storage
+	msgBroker    MessageProducer
 	minExpiryDur time.Duration
 }
 
 // Storage has functions required to store, read and manipulate Seller information
 type Storage interface {
-	Init(clusterHosts []string, keyspace string) error
 	AddProduct(p *sellerpb.Product) error
+}
+
+// MessageProducer has functions to publish new products to the matching system
+// TODO: explore Kafka connect for cassandra instead of manual publish
+type MessageProducer interface {
+	PublishNewProduct(p *sellerpb.Product) error
 }
 
 func (m *Manager) initDefaultConf() {
 	m.addr = ":8082"
-	m.cassandraClusterHosts = []string{"127.0.0.1"}
-	m.cassandraKeyspace = "farm"
 	m.store = &store.Cassandra{}
 	m.minExpiryDur = 12 * time.Hour
-
 }
 
 // Start first initializes with default configuration and overrides with input options. Then starts a http server.
-func (m *Manager) Start(opts ...Option) error {
+func (m *Manager) Start(store Storage, broker MessageProducer, opts ...Option) error {
 	m.initDefaultConf()
 
 	for _, opt := range opts {
@@ -52,10 +52,8 @@ func (m *Manager) Start(opts ...Option) error {
 			return err
 		}
 	}
-	err := m.store.Init(m.cassandraClusterHosts, m.cassandraKeyspace)
-	if err != nil {
-		return err
-	}
+	m.store = store
+	m.msgBroker = broker
 	// iter := session.Query("SELECT cluster_name, listen_address FROM system.local;").Iter()
 	// var s1, s2 string
 	// exist := iter.Scan(&s1, &s2)
@@ -117,6 +115,15 @@ func (m *Manager) addProductReq(w http.ResponseWriter, r *http.Request) {
 
 	err = m.store.AddProduct(product)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = m.msgBroker.PublishNewProduct(product)
+	if err != nil {
+		// TODO: handle this failure case. The product has to be injected again into the matcher module
+		// May try Kafka connect to pull directly from store (cassandra)
+		// Add alerts for such failures.
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
