@@ -19,3 +19,5 @@ Farm provides a platform to achieve this. Sellers can post ads for their product
 - Async processing using Kafka streams
 - Use open source IAM
 
+
+![alt text](https://github.com/ihtkas/farm/blob/main/prototype.png?raw=true)

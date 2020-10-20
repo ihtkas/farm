@@ -119,12 +119,12 @@ func (m *Manager) addProductReq(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = m.msgBroker.PublishNewProduct(product)
-	if err != nil {
-		// TODO: handle this failure case. The product has to be injected again into the matcher module
-		// May try Kafka connect to pull directly from store (cassandra)
-		// Add alerts for such failures.
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// err = m.msgBroker.PublishNewProduct(product)
+	// if err != nil {
+	// 	// TODO: handle this failure case. The product has to be injected again into the matcher module
+	// 	// May try Kafka connect to pull directly from store (cassandra)
+	// 	// Add alerts for such failures.
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 }
