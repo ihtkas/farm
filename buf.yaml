@@ -1,0 +1,4 @@
+# conf file to run https://github.com/bufbuild/buf linter tool
+build:
+  roots:
+    - proto
