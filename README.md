@@ -12,6 +12,12 @@ Farm provides a platform to achieve this. Sellers can post ads for their product
 #### Why Am I writing this?
    To get hands on experience on various backend techs like Microservice architectur, Kafka streams, RDBMS(postrgres), NoSQL(cassandra), gRPC, protobuf, REST APIs. I have used some of these in professional career and read about some from online resources. I decided to use all of them and understand these with first hand experience in this project.
 
+#### Tech under experiment:
+- Kafka Message broker for Async processing
+- Cassandra(NoSQL) for data storage 
+- Postgis extension in Postgres for location based queries
+- Proto message for inter service data communication
+- gRPC for inter service communication 
 
 #### TODO:
 - REST APIs implementation
