@@ -29,7 +29,7 @@ func (p *KafkaProducer) Init(brokerAddrs []string, topic string) error {
 }
 
 // PublishNewProduct produces new product in the Kafka steam for matcher service.
-func (p *KafkaProducer) PublishNewProduct(product *sellerpb.Product) error {
+func (p *KafkaProducer) PublishNewProduct(product *sellerpb.ProductInput) error {
 	producer := p.producer
 	bs, err := proto.Marshal(product)
 	msg := &sarama.ProducerMessage{Topic: p.topic, Value: sarama.ByteEncoder(bs)}

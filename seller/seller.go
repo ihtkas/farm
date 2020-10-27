@@ -1,6 +1,7 @@
 package seller
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,18 +28,19 @@ type Manager struct {
 
 // Storage has functions required to store, read and manipulate Seller information
 type Storage interface {
-	AddProduct(p *sellerpb.Product) error
+	AddProduct(ctx context.Context, p *sellerpb.ProductInput) error
+	GetNearbyProducts(ctx context.Context, lat, lon float64, radius, offset, limit int) ([]*sellerpb.ProductResponse, error)
 }
 
 // MessageProducer has functions to publish new products to the matching system
 // TODO: explore Kafka connect for cassandra instead of manual publish
 type MessageProducer interface {
-	PublishNewProduct(p *sellerpb.Product) error
+	PublishNewProduct(p *sellerpb.ProductInput) error
 }
 
 func (m *Manager) initDefaultConf() {
 	m.addr = ":8082"
-	m.store = &store.Cassandra{}
+	m.store = &store.Storage{}
 	m.minExpiryDur = 12 * time.Hour
 }
 
@@ -95,7 +97,7 @@ func (m *Manager) addProductReq(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	product := &sellerpb.Product{}
+	product := &sellerpb.ProductInput{}
 
 	err = protojson.Unmarshal(body[:n], product)
 	if err != nil {
@@ -113,7 +115,7 @@ func (m *Manager) addProductReq(w http.ResponseWriter, r *http.Request) {
 		validation.Field(&product.MinQuantity, validation.Required),
 	)
 
-	err = m.store.AddProduct(product)
+	err = m.store.AddProduct(r.Context(), product)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

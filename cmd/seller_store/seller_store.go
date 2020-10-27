@@ -1,13 +1,14 @@
-package main
+package seller_store
 
 import (
 	"context"
 	"flag"
 
 	"github.com/golang/glog"
-	"github.com/ihtkas/farm/seller"
-	"github.com/ihtkas/farm/seller/store"
+
 	"github.com/ihtkas/farm/utils"
+
+	"github.com/ihtkas/farm/seller/store"
 )
 
 var cassandraClusterHosts utils.ArrayFlags
@@ -15,6 +16,7 @@ var cassandraKeyspace string
 var pgUsername, pgPassword, pgHost, pgPort, pgDbname string
 
 func main() {
+	//  clusterHosts []string, keyspace string
 	flag.Var(&cassandraClusterHosts, "cassandra_cluster_hosts", "List of hosts for cassandra hosts")
 	flag.StringVar(&cassandraKeyspace, "cassandra_cluster_keyspace", "farm_seller", "Keyaspace in cassandra for seller service")
 	flag.StringVar(&pgUsername, "postgres_user_name", "postgres", "User to connect postgres server")
@@ -23,27 +25,18 @@ func main() {
 	flag.StringVar(&pgPort, "postgres_port", "54321", "Port in the host to connect postgres server")
 	flag.StringVar(&pgDbname, "postgres_dbname", "farm_seller", "Database name for seller service in postgres")
 
-	// set default configuration if non provided for development convenience.
-	if len(cassandraClusterHosts) == 0 {
-		err := cassandraClusterHosts.Set("127.0.0.1:9042")
-		if err != nil {
-			glog.Errorln(err)
-			return
-		}
+	ctx := context.Background()
+	err := store.InitStoreInCassandra(ctx, cassandraClusterHosts, cassandraKeyspace)
+	if err != nil {
+		glog.Errorln(err)
+		return
+	}
+	flag.StringVar(&cassandraKeyspace, "Cassandra Cluster Hosts", "farm_seller", "List of hosts for cassandra hosts")
+
+	err = store.InitStoreInPostgres(ctx, pgUsername, pgPassword, pgHost, pgPort, pgDbname)
+	if err != nil {
+		glog.Errorln(err)
+		return
 	}
 
-	store := &store.Storage{}
-	err := store.Init(context.Background(), pgUsername, pgPassword, pgHost, pgPort, pgDbname, cassandraClusterHosts, cassandraKeyspace)
-	if err != nil {
-		glog.Errorln(err)
-		return
-	}
-	var broker seller.MessageProducer
-	m := &seller.Manager{}
-	err = m.Start(store, broker)
-	if err != nil {
-		glog.Errorln(err)
-		return
-	}
-	glog.Errorln("Done....")
 }
