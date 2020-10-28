@@ -20,7 +20,7 @@ func main() {
 	flag.StringVar(&pgUsername, "postgres_user_name", "postgres", "User to connect postgres server")
 	flag.StringVar(&pgPassword, "postgres_password", "", "Password to connect postrgres server")
 	flag.StringVar(&pgHost, "postgres_host", "127.0.0.1", "Host address of postgres server")
-	flag.StringVar(&pgPort, "postgres_port", "54321", "Port in the host to connect postgres server")
+	flag.StringVar(&pgPort, "postgres_port", "5432", "Port in the host to connect postgres server")
 	flag.StringVar(&pgDbname, "postgres_dbname", "farm_seller", "Database name for seller service in postgres")
 
 	// set default configuration if non provided for development convenience.
