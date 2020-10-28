@@ -35,6 +35,14 @@ message Product {
     double pickup_loc_lon = 10;
 }
 
+message ProductLocationSearchRequest {
+    double pickup_loc_lat = 1;
+    double pickup_loc_lon = 2;
+    uint32 radius = 3;
+    uint32 offset = 4;
+    uint32 limit  = 5;
+}
+
 message ProductResponse {
     string id = 1;
     string name = 2;

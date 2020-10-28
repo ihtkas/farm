@@ -16,7 +16,12 @@ var cassandraKeyspace string
 var pgUsername, pgPassword, pgHost, pgPort, pgDbname string
 
 func main() {
-	//  clusterHosts []string, keyspace string
+	// Prerequisites for development testing:
+	// Cassandra:
+	// CREATE KEYSPACE farm_seller WITH replication = {'class':'SimpleStrategy', 'replication_factor' : 1};
+	// Postgres:
+	// CREATE DATABSE farm_seller;
+
 	flag.Var(&cassandraClusterHosts, "cassandra_cluster_hosts", "List of hosts for cassandra hosts")
 	flag.StringVar(&cassandraKeyspace, "cassandra_cluster_keyspace", "farm_seller", "Keyaspace in cassandra for seller service")
 	flag.StringVar(&pgUsername, "postgres_user_name", "postgres", "User to connect postgres server")

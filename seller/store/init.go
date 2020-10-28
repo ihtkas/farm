@@ -72,18 +72,7 @@ func InitStoreInCassandra(ctx context.Context, clusterHosts []string, keyspace s
 		return err
 	}
 
-	q := session.Query(`
-	CREATE TABLE IF NOT EXISTS product (
-			id UUID PRIMARY KEY,
-			name varchar,
-			expiry duration,
-			quantity int,
-			minquantity int,
-			price_per_quantity int,
-			description varchar,
-			tags list<varchar>,
-		)
-		`)
+	q := session.Query(createProductCaasandraQuery)
 	q = q.WithContext(ctx)
 	return q.Exec()
 }
