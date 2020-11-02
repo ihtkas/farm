@@ -35,12 +35,20 @@ message ProductLocationSearchRequest {
     uint32 limit  = 5;
 }
 
-message ProductResponse {
+message ProductLocationResponse {
     string id = 1;
     ProductInfo info = 2;
     // euclidean distance in meters computed using postgis extension.
     int32 distance = 3;
 }
+
+
+message ProductsByUserRequest {
+    string last_timestamp_uuid = 4;
+    uint32 limit  = 5;
+}
+
+
 
 // from repo root directory
 // protoc -I proto/ proto/seller/v1/seller.proto --go_out=paths=source_relative:.

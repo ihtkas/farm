@@ -37,7 +37,8 @@ type Manager struct {
 // Storage has functions required to store, read and manipulate Seller information
 type Storage interface {
 	AddProduct(ctx context.Context, p *sellerpb.ProductInfo) error
-	GetNearbyProducts(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductResponse, error)
+	GetNearbyProducts(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductLocationResponse, error)
+	GetProductsList(ctx context.Context, req *sellerpb.ProductsByUserRequest) ([]*sellerpb.Product, string, error)
 }
 
 // MessageProducer has functions to publish new products to the matching system
@@ -79,11 +80,18 @@ func (m *Manager) Start(store Storage, broker MessageProducer, opts ...Option) e
 
 // ServeHTTP handles all http APIs for Account management
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// TODO: get the userID from cookie and set it in context
+	ctx := context.WithValue(r.Context(), "UserID", "1105ce66-95da-4e5b-9af2-25976c8f4f5d")
+	r = r.WithContext(ctx)
+	// ---------------
+
 	switch r.URL.Path {
 	case "/seller/product/add":
 		m.addProductReq(w, r)
 	case "/seller/product/get_nearby_product":
 		m.getNearByProduct(w, r)
+	case "/seller/product/list":
+		m.getProductsList(w, r)
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug") {
 			arr := strings.Split(r.URL.Path, "/")
@@ -189,6 +197,61 @@ func (m *Manager) getNearByProduct(w http.ResponseWriter, r *http.Request) {
 		arr = append(arr, string(b))
 	}
 	_, err = w.Write([]byte("[" + strings.Join(arr, ", ") + "]"))
+	if err != nil {
+		glog.Errorln(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// err = m.msgBroker.PublishNewProduct(product)
+	// if err != nil {
+	// 	// TODO: handle this failure case. The product has to be injected again into the matcher module
+	// 	// May try Kafka connect to pull directly from store (cassandra)
+	// 	// Add alerts for such failures.
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
+}
+
+func (m *Manager) getProductsList(w http.ResponseWriter, r *http.Request) {
+
+	body := make([]byte, 1<<10)
+	n, err := r.Body.Read(body)
+
+	if err != nil && err != io.EOF {
+		glog.Errorln(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req := &sellerpb.ProductsByUserRequest{}
+
+	err = protojson.Unmarshal(body[:n], req)
+	if err != nil {
+		glog.Errorln(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	validation.ValidateStruct(&req,
+		validation.Field(&req.Limit, utils.Uint32Range(limitMin, limitMax, true, true)),
+	)
+
+	products, uuid, err := m.store.GetProductsList(r.Context(), req)
+	if err != nil {
+		glog.Errorln(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var arr []string
+	for _, p := range products {
+		b, err := protojson.Marshal(p)
+		if err != nil {
+			glog.Errorln(err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		arr = append(arr, string(b))
+	}
+	_, err = w.Write([]byte(`{"products": [` + strings.Join(arr, `, `) + `], "last_timeUUID": "` + uuid + `"}`))
 	if err != nil {
 		glog.Errorln(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)

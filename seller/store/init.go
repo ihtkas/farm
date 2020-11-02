@@ -50,7 +50,7 @@ func InitStoreInPostgres(ctx context.Context, username, password, host, port, db
 		return err
 	}
 
-	_, err = tx.Exec(ctx, createPickUpLocLocIndexPGQuery)
+	_, err = tx.Exec(ctx, createPickUpLocIndexPGQuery)
 	if err != nil {
 		return err
 	}
@@ -69,5 +69,16 @@ func InitStoreInCassandra(ctx context.Context, clusterHosts []string, keyspace s
 
 	q := session.Query(createProductCasandraQuery)
 	q = q.WithContext(ctx)
-	return q.Exec()
+	err = q.Exec()
+	if err != nil {
+		return err
+	}
+
+	q = session.Query(createUserProductCasandraQuery)
+	q = q.WithContext(ctx)
+	err = q.Exec()
+	if err != nil {
+		return err
+	}
+	return nil
 }

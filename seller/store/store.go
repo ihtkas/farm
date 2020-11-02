@@ -4,6 +4,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/golang/glog"
@@ -19,12 +20,12 @@ type Storage struct {
 }
 
 // AddProduct adds a new product
-func (s *Storage) AddProduct(ctx context.Context, product *sellerpb.ProductInfo) error {
+func (s *Storage) AddProduct(ctx context.Context, info *sellerpb.ProductInfo) error {
 
 	rows, err := s.pg.Query(ctx,
-		insertProductPGQuery, product.Name, product.Quantity, product.Tags, fmt.Sprintf("Point(%v %v)", product.PickupLocLat, product.PickupLocLon))
+		insertProductPGQuery, info.Name, info.Quantity, info.Tags, fmt.Sprintf("Point(%v %v)", info.PickupLocLat, info.PickupLocLon))
 	if err != nil {
-		glog.Errorln("Error in insert into postgres", err)
+		glog.Errorln("Error in insert into postgres", err, insertProductPGQuery)
 		return err
 	}
 	var id string
@@ -34,15 +35,16 @@ func (s *Storage) AddProduct(ctx context.Context, product *sellerpb.ProductInfo)
 		glog.Errorln("Error in scan after insert", err)
 		return err
 	}
-	productBlob, err := proto.Marshal(product)
+	infoBlob, err := proto.Marshal(info)
 	if err != nil {
 		glog.Errorln("Error in proto marshal", err)
 		return err
 	}
 	query := s.cassandra.Query(insertProductCassandraQuery,
 		id,
-		productBlob,
+		infoBlob,
 	)
+
 	query = query.WithContext(ctx)
 	err = query.Exec()
 	if err != nil {
@@ -50,13 +52,36 @@ func (s *Storage) AddProduct(ctx context.Context, product *sellerpb.ProductInfo)
 		glog.Errorln("Error in insert into cassandra:", err)
 		return err
 	}
-	return err
+	product := &sellerpb.Product{Id: id, Info: info}
+
+	productBlob, err := proto.Marshal(product)
+	if err != nil {
+		glog.Errorln("Error in proto marshal", err)
+		return err
+	}
+	glog.Errorln(product, productBlob)
+	time_uuid := gocql.UUIDFromTime(time.Now())
+	userID := ctx.Value("UserID")
+	query = s.cassandra.Query(insertUserProductCassandraQuery,
+		userID,
+		time_uuid,
+		productBlob,
+	)
+
+	query = query.WithContext(ctx)
+	err = query.Exec()
+	if err != nil {
+		// TODO: Check how to retry this or rollback changes in postgres. problem in hybrid storage ie., duplicating state in two stores.
+		glog.Errorln("Error in insert into cassandra:", err)
+		return err
+	}
+	return nil
 
 }
 
 // GetNearbyProducts finds the products sent form pickup locations
 // within given radius ordered by shortest distances first.
-func (s *Storage) GetNearbyProducts(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductResponse, error) {
+func (s *Storage) GetNearbyProducts(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductLocationResponse, error) {
 	products, err := s.getNearbyProductsPostgres(ctx, loc)
 	if err != nil {
 		return nil, err
@@ -67,7 +92,7 @@ func (s *Storage) GetNearbyProducts(ctx context.Context, loc *sellerpb.ProductLo
 	}
 	return products, nil
 }
-func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductResponse, error) {
+func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductLocationResponse, error) {
 
 	conn, err := s.pg.Acquire(ctx)
 	if err != nil {
@@ -83,10 +108,10 @@ func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.P
 		return nil, err
 	}
 	defer rows.Close()
-	products := make([]*sellerpb.ProductResponse, 0)
+	products := make([]*sellerpb.ProductLocationResponse, 0)
 	// get full info about the product form cassandra
 	for rows.Next() {
-		p := &sellerpb.ProductResponse{}
+		p := &sellerpb.ProductLocationResponse{}
 		err := rows.Scan(&p.Id, &p.Distance)
 		if err != nil {
 			glog.Errorln(err)
@@ -97,7 +122,7 @@ func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.P
 	return products, nil
 }
 
-func (s *Storage) fetchProductDetails(ctx context.Context, products []*sellerpb.ProductResponse) error {
+func (s *Storage) fetchProductDetails(ctx context.Context, products []*sellerpb.ProductLocationResponse) error {
 	for _, p := range products {
 		q := s.cassandra.Query(selectProductCassandraQuery, p.Id)
 		q = q.WithContext(ctx)
@@ -121,6 +146,38 @@ func (s *Storage) fetchProductDetails(ctx context.Context, products []*sellerpb.
 		p.Info = info
 	}
 	return nil
+}
+
+// GetProductsList returns the products for specific user and the last timestamp uuid. Last timestamp uuid will be helpful for pagination.
+func (s *Storage) GetProductsList(ctx context.Context, req *sellerpb.ProductsByUserRequest) ([]*sellerpb.Product, string, error) {
+	userID := ctx.Value("UserID")
+	var q *gocql.Query
+	if req.LastTimestampUuid == "" {
+		q = s.cassandra.Query(selectProductByUserCassandraQuery, userID, req.Limit)
+	} else {
+		q = s.cassandra.Query(selectProductByUserCassandraQuery, userID, req.LastTimestampUuid, req.Limit)
+	}
+	q = q.WithContext(ctx)
+	it := q.Iter()
+	defer it.Close()
+	var productBlob []byte
+	var timestampUUID string
+	var products []*sellerpb.Product
+	for it.Scan(&productBlob, &timestampUUID) {
+		product := &sellerpb.Product{}
+		err := proto.Unmarshal(productBlob, product)
+		if err != nil {
+			glog.Errorln(err, q, timestampUUID, productBlob)
+			return nil, "", err
+		}
+		products = append(products, product)
+	}
+	err := it.Close()
+	if err != nil {
+		glog.Errorln(err)
+		return nil, "", err
+	}
+	return products, timestampUUID, nil
 }
 
 // Init intializes a connection pool with given postgres instance.
