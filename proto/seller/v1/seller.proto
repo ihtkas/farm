@@ -10,7 +10,7 @@ message Profile {
 }
 
 
-message ProductInput {
+message ProductInfo {
     string name = 1;
     google.protobuf.Timestamp expiry = 2;
     uint32 quantity = 3;
@@ -24,15 +24,7 @@ message ProductInput {
 
 message Product {
     string id = 1;
-    string name = 2;
-    google.protobuf.Timestamp expiry = 3;
-    uint32 quantity = 4;
-    uint32 min_quantity = 5;
-    uint32 price_per_quantity = 6;
-    string description = 7;
-    repeated string tags = 8;
-    double pickup_loc_lat = 9;
-    double pickup_loc_lon = 10;
+    ProductInfo info = 2;
 }
 
 message ProductLocationSearchRequest {
@@ -45,17 +37,9 @@ message ProductLocationSearchRequest {
 
 message ProductResponse {
     string id = 1;
-    string name = 2;
-    google.protobuf.Timestamp expiry = 3;
-    uint32 quantity = 4;
-    uint32 min_quantity = 5;
-    uint32 price_per_quantity = 6;
-    string description = 7;
-    repeated string tags = 8;
-    double pickup_loc_lat = 9;
-    double pickup_loc_lon = 10;
+    ProductInfo info = 2;
     // euclidean distance in meters computed using postgis extension.
-    int32 distance = 11;
+    int32 distance = 3;
 }
 
 // from repo root directory

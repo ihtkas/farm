@@ -44,18 +44,13 @@ func InitStoreInPostgres(ctx context.Context, username, password, host, port, db
 		return err
 	}
 
-	_, err = tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS product 
-	    (id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
-		 name varchar,
-		 quantity int,
-		 tags text[],
-		 pickup_loc geography)`)
+	_, err = tx.Exec(ctx, createProductPGQuery)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS product_gindx ON product USING GIST (pickup_loc)`)
+	_, err = tx.Exec(ctx, createPickUpLocLocIndexPGQuery)
 	if err != nil {
 		return err
 	}
@@ -72,7 +67,7 @@ func InitStoreInCassandra(ctx context.Context, clusterHosts []string, keyspace s
 		return err
 	}
 
-	q := session.Query(createProductCaasandraQuery)
+	q := session.Query(createProductCasandraQuery)
 	q = q.WithContext(ctx)
 	return q.Exec()
 }

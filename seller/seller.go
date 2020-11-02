@@ -36,14 +36,14 @@ type Manager struct {
 
 // Storage has functions required to store, read and manipulate Seller information
 type Storage interface {
-	AddProduct(ctx context.Context, p *sellerpb.ProductInput) error
+	AddProduct(ctx context.Context, p *sellerpb.ProductInfo) error
 	GetNearbyProducts(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductResponse, error)
 }
 
 // MessageProducer has functions to publish new products to the matching system
 // TODO: explore Kafka connect for cassandra instead of manual publish
 type MessageProducer interface {
-	PublishNewProduct(p *sellerpb.ProductInput) error
+	PublishNewProduct(p *sellerpb.ProductInfo) error
 }
 
 func (m *Manager) initDefaultConf() {
@@ -108,7 +108,7 @@ func (m *Manager) addProductReq(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	product := &sellerpb.ProductInput{}
+	product := &sellerpb.ProductInfo{}
 
 	err = protojson.Unmarshal(body[:n], product)
 	if err != nil {

@@ -66,7 +66,7 @@ func (m *Manager) initStorage() error {
 
 // ServeHTTP handles all http APIs for Account management
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
+	// TODO: Use mux for routing
 	switch r.URL.Path {
 	case "/user/add":
 		m.addUserReq(w, r)

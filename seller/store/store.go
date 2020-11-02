@@ -4,50 +4,12 @@ package store
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/golang/glog"
-	"github.com/golang/protobuf/ptypes"
 	sellerpb "github.com/ihtkas/farm/seller/v1"
 	pgpoolv4 "github.com/jackc/pgx/v4/pgxpool"
-)
-
-const (
-	idColumn               = "id"
-	nameColumn             = "name"
-	expiryColumn           = "expiry"
-	quantityColumn         = "quantity"
-	minQuantityColumn      = "min_quantity"
-	pricePerQuantityColumn = "price_per_quantity"
-	pickupLocLatColumn     = "pickup_loc_lat"
-	pickupLocLonColumn     = "pickup_loc_lon"
-	descriptionColumn      = "description"
-	tagsColumn             = "tags"
-
-	createProductCaasandraQuery = "CREATE TABLE IF NOT EXISTS product (" +
-		idColumn + " UUID PRIMARY KEY," +
-		nameColumn + " varchar," +
-		expiryColumn + " timestamp," +
-		quantityColumn + " int," +
-		minQuantityColumn + " int," +
-		pricePerQuantityColumn + " int," +
-		pickupLocLatColumn + " double," +
-		pickupLocLonColumn + " double," +
-		descriptionColumn + " varchar," +
-		tagsColumn + " list<varchar>)"
-
-	insertProductCassandraQuery = "INSERT INTO product (" +
-		idColumn + "," +
-		nameColumn + "," +
-		expiryColumn + "," +
-		quantityColumn + "," +
-		minQuantityColumn + "," +
-		pricePerQuantityColumn + "," +
-		pickupLocLatColumn + "," +
-		pickupLocLonColumn + "," +
-		descriptionColumn + "," +
-		tagsColumn + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	"google.golang.org/protobuf/proto"
 )
 
 // Storage provides a persistent storage for Seller service
@@ -57,11 +19,10 @@ type Storage struct {
 }
 
 // AddProduct adds a new product
-func (s *Storage) AddProduct(ctx context.Context, p *sellerpb.ProductInput) error {
+func (s *Storage) AddProduct(ctx context.Context, product *sellerpb.ProductInfo) error {
 
 	rows, err := s.pg.Query(ctx,
-		`INSERT INTO product (name, quantity, tags, pickup_loc) values ($1, $2, $3, $4) returning (id)
-	`, p.Name, p.Quantity, p.Tags, fmt.Sprintf("Point(%v %v)", p.PickupLocLat, p.PickupLocLon))
+		insertProductPGQuery, product.Name, product.Quantity, product.Tags, fmt.Sprintf("Point(%v %v)", product.PickupLocLat, product.PickupLocLon))
 	if err != nil {
 		glog.Errorln("Error in insert into postgres", err)
 		return err
@@ -73,17 +34,14 @@ func (s *Storage) AddProduct(ctx context.Context, p *sellerpb.ProductInput) erro
 		glog.Errorln("Error in scan after insert", err)
 		return err
 	}
+	productBlob, err := proto.Marshal(product)
+	if err != nil {
+		glog.Errorln("Error in proto marshal", err)
+		return err
+	}
 	query := s.cassandra.Query(insertProductCassandraQuery,
 		id,
-		p.Name,
-		p.Expiry.AsTime(),
-		p.Quantity,
-		p.MinQuantity,
-		p.PricePerQuantity,
-		p.PickupLocLat,
-		p.PickupLocLon,
-		p.Description,
-		p.Tags,
+		productBlob,
 	)
 	query = query.WithContext(ctx)
 	err = query.Exec()
@@ -118,11 +76,7 @@ func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.P
 
 	// uses postgis extension  query to sort nearby location .
 
-	rows, err := conn.Query(ctx, `
-	SELECT id, TRUNC(ST_Distance(pickup_loc, ref_geoloc)) AS distance
-	FROM product CROSS JOIN (SELECT ST_MakePoint($1, $2)::geography AS ref_geoloc) AS r
-	WHERE ST_DWithin(pickup_loc, ref_geoloc, $3)
-	ORDER BY ST_Distance(pickup_loc, ref_geoloc) LIMIT $4 OFFSET $5`,
+	rows, err := conn.Query(ctx, nearByProductsPGQuery,
 		loc.PickupLocLat, loc.PickupLocLon, loc.Radius, loc.Limit, loc.Offset)
 	if err != nil {
 		glog.Errorln(err)
@@ -145,24 +99,26 @@ func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.P
 
 func (s *Storage) fetchProductDetails(ctx context.Context, products []*sellerpb.ProductResponse) error {
 	for _, p := range products {
-		q := s.cassandra.Query("SELECT name, expiry, quantity, min_quantity, price_per_quantity, description, tags, pickup_loc_lat, pickup_loc_lon from product where id=?", p.Id)
+		q := s.cassandra.Query(selectProductCassandraQuery, p.Id)
 		q = q.WithContext(ctx)
 		err := q.Exec()
 		if err != nil {
 			glog.Errorln(err, q.String(), p)
 			return err
 		}
-		expiry := time.Time{}
-		err = q.Scan(&p.Name, &expiry, &p.Quantity, &p.MinQuantity, &p.PricePerQuantity, &p.Description, &p.Tags, &p.PickupLocLat, &p.PickupLocLon)
+		var productBlob []byte
+		err = q.Scan(&productBlob)
 		if err != nil {
 			glog.Errorln(err, p)
 			return err
 		}
-		p.Expiry, err = ptypes.TimestampProto(expiry)
+		info := &sellerpb.ProductInfo{}
+		err = proto.Unmarshal(productBlob, info)
 		if err != nil {
 			glog.Errorln(err, p)
 			return err
 		}
+		p.Info = info
 	}
 	return nil
 }
