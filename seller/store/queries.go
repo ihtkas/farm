@@ -21,21 +21,36 @@ const (
 	productProtoColumn      = "product_proto"
 	insertionTimeUUIDColumn = "insertion_time"
 
-	createProductCasandraQuery = "CREATE TABLE IF NOT EXISTS " + productTable + " (" +
+	createProductCasandraQuery = "CREATE TABLE IF NOT EXISTS product (" +
 		productIdColumn + " UUID PRIMARY KEY," +
-		productProtoColumn + " blob)"
+		nameColumn + " varchar," +
+		expiryColumn + " timestamp," +
+		minQuantityColumn + " int," +
+		pricePerQuantityColumn + " int," +
+		pickupLocLatColumn + " double," +
+		pickupLocLonColumn + " double," +
+		descriptionColumn + " varchar," +
+		tagsColumn + " list<varchar>)"
 
 	createUserProductCasandraQuery = "CREATE TABLE IF NOT EXISTS " + userProductTable + " (" +
 		userIdColumn + " UUID," +
 		insertionTimeUUIDColumn + " UUID," +
-		productProtoColumn + " blob," +
+		productIdColumn + " UUID," +
+		nameColumn + " varchar," +
+		expiryColumn + " timestamp," +
+		minQuantityColumn + " int," +
+		pricePerQuantityColumn + " int," +
+		pickupLocLatColumn + " double," +
+		pickupLocLonColumn + " double," +
+		descriptionColumn + " varchar," +
+		tagsColumn + " list<varchar>," +
 		"PRIMARY KEY ((" + userIdColumn + "), " + insertionTimeUUIDColumn + "))" +
 		"WITH CLUSTERING ORDER BY (" + insertionTimeUUIDColumn + " DESC)"
 
 	createProductPGQuery = "CREATE TABLE IF NOT EXISTS " + productTable + " (" +
 		productIdColumn + " uuid DEFAULT uuid_generate_v4() PRIMARY KEY," +
 		nameColumn + " varchar," +
-		quantityColumn + " int," +
+		quantityColumn + " int," + //quantity column is added in postgres to make atomic updates on concurrent orders
 		tagsColumn + " text[]," +
 		pickUpLocColumn + " geography)"
 
@@ -45,12 +60,27 @@ const (
 
 	insertProductCassandraQuery = "INSERT INTO " + productTable + "(" +
 		productIdColumn + "," +
-		productProtoColumn + ") values (?, ?)"
+		nameColumn + "," +
+		expiryColumn + "," +
+		minQuantityColumn + "," +
+		pricePerQuantityColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn + "," +
+		descriptionColumn + "," +
+		tagsColumn + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 	insertUserProductCassandraQuery = "INSERT INTO " + userProductTable + "(" +
 		userIdColumn + "," +
 		insertionTimeUUIDColumn + "," +
-		productProtoColumn + ") values (?, ?, ?)"
+		productIdColumn + "," +
+		nameColumn + "," +
+		expiryColumn + "," +
+		minQuantityColumn + "," +
+		pricePerQuantityColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn + "," +
+		descriptionColumn + "," +
+		tagsColumn + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 	nearByProductsPGQuery = "SELECT " + productIdColumn + ", TRUNC(ST_Distance(" + pickUpLocColumn + ", ref_geoloc)) AS distance" +
 		"	FROM " + productTable +
@@ -59,11 +89,39 @@ const (
 		"WHERE ST_DWithin(" + pickUpLocColumn + ", ref_geoloc, $3)" +
 		"ORDER BY ST_Distance(" + pickUpLocColumn + ", ref_geoloc) LIMIT $4 OFFSET $5"
 
-	selectProductCassandraQuery = "SELECT " + productProtoColumn +
-
+	selectProductCassandraQuery = "SELECT " +
+		productIdColumn + "," +
+		nameColumn + "," +
+		expiryColumn + "," +
+		minQuantityColumn + "," +
+		pricePerQuantityColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn + "," +
+		descriptionColumn + "," +
+		tagsColumn +
 		" FROM " + productTable + " WHERE " + productIdColumn + "=?"
-	selectProductByUserAfterTimeCassandraQuery = "SELECT " + productProtoColumn + ", " + insertionTimeUUIDColumn +
+	selectProductByUserAfterTimeCassandraQuery = "SELECT " + productProtoColumn + ", " +
+		insertionTimeUUIDColumn +
+		productIdColumn + "," +
+		nameColumn + "," +
+		expiryColumn + "," +
+		minQuantityColumn + "," +
+		pricePerQuantityColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn + "," +
+		descriptionColumn + "," +
+		tagsColumn +
 		" FROM " + userProductTable + " WHERE " + userIdColumn + "=? and " + insertionTimeUUIDColumn + ">? limit ?"
-	selectProductByUserCassandraQuery = "SELECT " + productProtoColumn + ", " + insertionTimeUUIDColumn +
+	selectProductByUserCassandraQuery = "SELECT " + productProtoColumn + ", " +
+		insertionTimeUUIDColumn +
+		productIdColumn + "," +
+		nameColumn + "," +
+		expiryColumn + "," +
+		minQuantityColumn + "," +
+		pricePerQuantityColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn + "," +
+		descriptionColumn + "," +
+		tagsColumn +
 		" FROM " + userProductTable + " WHERE " + userIdColumn + "=? limit ?"
 )

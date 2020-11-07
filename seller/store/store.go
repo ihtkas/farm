@@ -8,9 +8,9 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	sellerpb "github.com/ihtkas/farm/seller/v1"
 	pgpoolv4 "github.com/jackc/pgx/v4/pgxpool"
-	"google.golang.org/protobuf/proto"
 )
 
 // Storage provides a persistent storage for Seller service
@@ -35,14 +35,16 @@ func (s *Storage) AddProduct(ctx context.Context, info *sellerpb.ProductInfo) er
 		glog.Errorln("Error in scan after insert", err)
 		return err
 	}
-	infoBlob, err := proto.Marshal(info)
-	if err != nil {
-		glog.Errorln("Error in proto marshal", err)
-		return err
-	}
 	query := s.cassandra.Query(insertProductCassandraQuery,
 		id,
-		infoBlob,
+		info.Name,
+		info.Expiry.AsTime(),
+		info.MinQuantity,
+		info.PricePerQuantity,
+		info.PickupLocLat,
+		info.PickupLocLon,
+		info.Description,
+		info.Tags,
 	)
 
 	query = query.WithContext(ctx)
@@ -52,20 +54,21 @@ func (s *Storage) AddProduct(ctx context.Context, info *sellerpb.ProductInfo) er
 		glog.Errorln("Error in insert into cassandra:", err)
 		return err
 	}
-	product := &sellerpb.Product{Id: id, Info: info}
 
-	productBlob, err := proto.Marshal(product)
-	if err != nil {
-		glog.Errorln("Error in proto marshal", err)
-		return err
-	}
-	glog.Errorln(product, productBlob)
-	time_uuid := gocql.UUIDFromTime(time.Now())
+	timeUUID := gocql.UUIDFromTime(time.Now())
 	userID := ctx.Value("UserID")
 	query = s.cassandra.Query(insertUserProductCassandraQuery,
 		userID,
-		time_uuid,
-		productBlob,
+		timeUUID,
+		id,
+		info.Name,
+		info.Expiry.AsTime(),
+		info.MinQuantity,
+		info.PricePerQuantity,
+		info.PickupLocLat,
+		info.PickupLocLon,
+		info.Description,
+		info.Tags,
 	)
 
 	query = query.WithContext(ctx)
@@ -131,14 +134,14 @@ func (s *Storage) fetchProductDetails(ctx context.Context, products []*sellerpb.
 			glog.Errorln(err, q.String(), p)
 			return err
 		}
-		var productBlob []byte
-		err = q.Scan(&productBlob)
+		expiry := time.Time{}
+		info := &sellerpb.ProductInfo{}
+		err = q.Scan(&info.Name, &expiry, &info.Quantity, &info.MinQuantity, &info.PricePerQuantity, &info.Description, &info.Tags, &info.PickupLocLat, &info.PickupLocLon)
 		if err != nil {
 			glog.Errorln(err, p)
 			return err
 		}
-		info := &sellerpb.ProductInfo{}
-		err = proto.Unmarshal(productBlob, info)
+		info.Expiry, err = ptypes.TimestampProto(expiry)
 		if err != nil {
 			glog.Errorln(err, p)
 			return err
@@ -155,19 +158,25 @@ func (s *Storage) GetProductsList(ctx context.Context, req *sellerpb.ProductsByU
 	if req.LastTimestampUuid == "" {
 		q = s.cassandra.Query(selectProductByUserCassandraQuery, userID, req.Limit)
 	} else {
-		q = s.cassandra.Query(selectProductByUserCassandraQuery, userID, req.LastTimestampUuid, req.Limit)
+		q = s.cassandra.Query(selectProductByUserAfterTimeCassandraQuery, userID, req.LastTimestampUuid, req.Limit)
 	}
 	q = q.WithContext(ctx)
 	it := q.Iter()
 	defer it.Close()
-	var productBlob []byte
 	var timestampUUID string
 	var products []*sellerpb.Product
-	for it.Scan(&productBlob, &timestampUUID) {
-		product := &sellerpb.Product{}
-		err := proto.Unmarshal(productBlob, product)
+	flag := true
+	for flag {
+		info := &sellerpb.ProductInfo{}
+		expiry := time.Time{}
+		product := &sellerpb.Product{Info: info}
+		flag = it.Scan(&timestampUUID, &product.Id, &info.Name, &expiry,
+			&info.Quantity, &info.MinQuantity, &info.PricePerQuantity, &info.Description,
+			&info.Tags, &info.PickupLocLat, &info.PickupLocLon)
+		var err error
+		info.Expiry, err = ptypes.TimestampProto(expiry)
 		if err != nil {
-			glog.Errorln(err, q, timestampUUID, productBlob)
+			glog.Errorln(err, product)
 			return nil, "", err
 		}
 		products = append(products, product)
