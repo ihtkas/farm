@@ -6,8 +6,8 @@ const (
 	productTable     = "product"
 	userProductTable = "user_product"
 
-	productIdColumn         = "product_id"
-	userIdColumn            = "user_id"
+	productIDColumn         = "product_id"
+	userIDColumn            = "user_id"
 	nameColumn              = "name"
 	expiryColumn            = "expiry"
 	quantityColumn          = "quantity"
@@ -22,7 +22,7 @@ const (
 	insertionTimeUUIDColumn = "insertion_time"
 
 	createProductCasandraQuery = "CREATE TABLE IF NOT EXISTS product (" +
-		productIdColumn + " UUID PRIMARY KEY," +
+		productIDColumn + " UUID PRIMARY KEY," +
 		nameColumn + " varchar," +
 		expiryColumn + " timestamp," +
 		minQuantityColumn + " int," +
@@ -33,9 +33,9 @@ const (
 		tagsColumn + " list<varchar>)"
 
 	createUserProductCasandraQuery = "CREATE TABLE IF NOT EXISTS " + userProductTable + " (" +
-		userIdColumn + " UUID," +
+		userIDColumn + " UUID," +
 		insertionTimeUUIDColumn + " UUID," +
-		productIdColumn + " UUID," +
+		productIDColumn + " UUID," +
 		nameColumn + " varchar," +
 		expiryColumn + " timestamp," +
 		minQuantityColumn + " int," +
@@ -44,11 +44,11 @@ const (
 		pickupLocLonColumn + " double," +
 		descriptionColumn + " varchar," +
 		tagsColumn + " list<varchar>," +
-		"PRIMARY KEY ((" + userIdColumn + "), " + insertionTimeUUIDColumn + "))" +
+		"PRIMARY KEY ((" + userIDColumn + "), " + insertionTimeUUIDColumn + "))" +
 		"WITH CLUSTERING ORDER BY (" + insertionTimeUUIDColumn + " DESC)"
 
 	createProductPGQuery = "CREATE TABLE IF NOT EXISTS " + productTable + " (" +
-		productIdColumn + " uuid DEFAULT uuid_generate_v4() PRIMARY KEY," +
+		productIDColumn + " uuid DEFAULT uuid_generate_v4() PRIMARY KEY," +
 		nameColumn + " varchar," +
 		quantityColumn + " int," + //quantity column is added in postgres to make atomic updates on concurrent orders
 		tagsColumn + " text[]," +
@@ -56,10 +56,10 @@ const (
 
 	createPickUpLocIndexPGQuery = "CREATE INDEX IF NOT EXISTS product_gindx ON " + productTable + " USING GIST (" + pickUpLocColumn + ")"
 
-	insertProductPGQuery = "INSERT INTO product (" + nameColumn + ", " + quantityColumn + ", " + tagsColumn + ", " + pickUpLocColumn + ") values ($1, $2, $3, $4) returning (" + productIdColumn + ")"
+	insertProductPGQuery = "INSERT INTO product (" + nameColumn + ", " + quantityColumn + ", " + tagsColumn + ", " + pickUpLocColumn + ") values ($1, $2, $3, $4) returning (" + productIDColumn + ")"
 
 	insertProductCassandraQuery = "INSERT INTO " + productTable + "(" +
-		productIdColumn + "," +
+		productIDColumn + "," +
 		nameColumn + "," +
 		expiryColumn + "," +
 		minQuantityColumn + "," +
@@ -70,9 +70,9 @@ const (
 		tagsColumn + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 	insertUserProductCassandraQuery = "INSERT INTO " + userProductTable + "(" +
-		userIdColumn + "," +
+		userIDColumn + "," +
 		insertionTimeUUIDColumn + "," +
-		productIdColumn + "," +
+		productIDColumn + "," +
 		nameColumn + "," +
 		expiryColumn + "," +
 		minQuantityColumn + "," +
@@ -82,7 +82,7 @@ const (
 		descriptionColumn + "," +
 		tagsColumn + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
-	nearByProductsPGQuery = "SELECT " + productIdColumn + ", TRUNC(ST_Distance(" + pickUpLocColumn + ", ref_geoloc)) AS distance" +
+	nearByProductsPGQuery = "SELECT " + productIDColumn + ", " + quantityColumn + ", TRUNC(ST_Distance(" + pickUpLocColumn + ", ref_geoloc)) AS distance" +
 		"	FROM " + productTable +
 		" CROSS JOIN (" +
 		"SELECT ST_MakePoint($1, $2)::geography AS ref_geoloc) AS r " +
@@ -90,38 +90,37 @@ const (
 		"ORDER BY ST_Distance(" + pickUpLocColumn + ", ref_geoloc) LIMIT $4 OFFSET $5"
 
 	selectProductCassandraQuery = "SELECT " +
-		productIdColumn + "," +
 		nameColumn + "," +
 		expiryColumn + "," +
 		minQuantityColumn + "," +
 		pricePerQuantityColumn + "," +
-		pickupLocLatColumn + "," +
-		pickupLocLonColumn + "," +
 		descriptionColumn + "," +
-		tagsColumn +
-		" FROM " + productTable + " WHERE " + productIdColumn + "=?"
-	selectProductByUserAfterTimeCassandraQuery = "SELECT " + productProtoColumn + ", " +
-		insertionTimeUUIDColumn +
-		productIdColumn + "," +
+		tagsColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn +
+		" FROM " + productTable + " WHERE " + productIDColumn + "=?"
+	selectProductByUserAfterTimeCassandraQuery = "SELECT " +
+		insertionTimeUUIDColumn + "," +
+		productIDColumn + "," +
 		nameColumn + "," +
 		expiryColumn + "," +
 		minQuantityColumn + "," +
 		pricePerQuantityColumn + "," +
-		pickupLocLatColumn + "," +
-		pickupLocLonColumn + "," +
 		descriptionColumn + "," +
-		tagsColumn +
-		" FROM " + userProductTable + " WHERE " + userIdColumn + "=? and " + insertionTimeUUIDColumn + ">? limit ?"
-	selectProductByUserCassandraQuery = "SELECT " + productProtoColumn + ", " +
-		insertionTimeUUIDColumn +
-		productIdColumn + "," +
+		tagsColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn +
+		" FROM " + userProductTable + " WHERE " + userIDColumn + "=? and " + insertionTimeUUIDColumn + ">? limit ?"
+	selectProductByUserCassandraQuery = "SELECT " +
+		insertionTimeUUIDColumn + "," +
+		productIDColumn + "," +
 		nameColumn + "," +
 		expiryColumn + "," +
 		minQuantityColumn + "," +
 		pricePerQuantityColumn + "," +
-		pickupLocLatColumn + "," +
-		pickupLocLonColumn + "," +
 		descriptionColumn + "," +
-		tagsColumn +
-		" FROM " + userProductTable + " WHERE " + userIdColumn + "=? limit ?"
+		tagsColumn + "," +
+		pickupLocLatColumn + "," +
+		pickupLocLonColumn +
+		" FROM " + userProductTable + " WHERE " + userIDColumn + "=? limit ?"
 )

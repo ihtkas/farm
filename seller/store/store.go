@@ -114,8 +114,8 @@ func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.P
 	products := make([]*sellerpb.ProductLocationResponse, 0)
 	// get full info about the product form cassandra
 	for rows.Next() {
-		p := &sellerpb.ProductLocationResponse{}
-		err := rows.Scan(&p.Id, &p.Distance)
+		p := &sellerpb.ProductLocationResponse{Info: &sellerpb.ProductInfo{}}
+		err := rows.Scan(&p.Id, &p.Info.Quantity, &p.Distance)
 		if err != nil {
 			glog.Errorln(err)
 			return nil, err
@@ -135,8 +135,8 @@ func (s *Storage) fetchProductDetails(ctx context.Context, products []*sellerpb.
 			return err
 		}
 		expiry := time.Time{}
-		info := &sellerpb.ProductInfo{}
-		err = q.Scan(&info.Name, &expiry, &info.Quantity, &info.MinQuantity, &info.PricePerQuantity, &info.Description, &info.Tags, &info.PickupLocLat, &info.PickupLocLon)
+		info := p.Info
+		err = q.Scan(&info.Name, &expiry, &info.MinQuantity, &info.PricePerQuantity, &info.Description, &info.Tags, &info.PickupLocLat, &info.PickupLocLon)
 		if err != nil {
 			glog.Errorln(err, p)
 			return err
@@ -171,7 +171,7 @@ func (s *Storage) GetProductsList(ctx context.Context, req *sellerpb.ProductsByU
 		expiry := time.Time{}
 		product := &sellerpb.Product{Info: info}
 		flag = it.Scan(&timestampUUID, &product.Id, &info.Name, &expiry,
-			&info.Quantity, &info.MinQuantity, &info.PricePerQuantity, &info.Description,
+			&info.MinQuantity, &info.PricePerQuantity, &info.Description,
 			&info.Tags, &info.PickupLocLat, &info.PickupLocLon)
 		var err error
 		info.Expiry, err = ptypes.TimestampProto(expiry)

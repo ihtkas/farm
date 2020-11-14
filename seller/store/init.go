@@ -10,17 +10,20 @@ import (
 
 // InitStoreInPostgres initializes data model for seller service in the given postgres server.
 func InitStoreInPostgres(ctx context.Context, username, password, host, port, dbname string) error {
-	config := "user=" + username +
+	configDNS := "user=" + username +
 		" host=" + host +
 		" port=" + port +
 		" dbname=" + dbname
+	glog.Errorln(configDNS)
 
 	if password != "" {
-		config += " password=" + password
+		configDNS += " password=" + password
 	}
-
-	glog.Errorln(config)
-	pool, err := pgpoolv4.Connect(ctx, config)
+	config, err := pgpoolv4.ParseConfig(configDNS)
+	if err != nil {
+		return err
+	}
+	pool, err := pgpoolv4.ConnectConfig(ctx, config)
 	if err != nil {
 		return err
 	}
