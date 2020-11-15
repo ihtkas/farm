@@ -11,7 +11,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion7
 
 // AccountServiceClient is the client API for AccountService service.
 //
@@ -49,12 +49,19 @@ type AccountServiceServer interface {
 type UnimplementedAccountServiceServer struct {
 }
 
-func (*UnimplementedAccountServiceServer) ValidateUser(context.Context, *ValidateUserRequest) (*ValidateUserResponse, error) {
+func (UnimplementedAccountServiceServer) ValidateUser(context.Context, *ValidateUserRequest) (*ValidateUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValidateUser not implemented")
 }
-func (*UnimplementedAccountServiceServer) mustEmbedUnimplementedAccountServiceServer() {}
+func (UnimplementedAccountServiceServer) mustEmbedUnimplementedAccountServiceServer() {}
 
-func RegisterAccountServiceServer(s *grpc.Server, srv AccountServiceServer) {
+// UnsafeAccountServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AccountServiceServer will
+// result in compilation errors.
+type UnsafeAccountServiceServer interface {
+	mustEmbedUnimplementedAccountServiceServer()
+}
+
+func RegisterAccountServiceServer(s grpc.ServiceRegistrar, srv AccountServiceServer) {
 	s.RegisterService(&_AccountService_serviceDesc, srv)
 }
 

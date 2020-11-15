@@ -20,30 +20,30 @@ func (opt *httpAddrConfOpt) set(m *Manager) error {
 	return nil
 }
 
-// CassandraClusterHosts retuns an option to set casscandra cluster hosts
-func CassandraClusterHosts(hosts []string) Option {
-	return &cassandraClusterHostsConfOpt{hosts: hosts}
-}
+// // CassandraClusterHosts retuns an option to set casscandra cluster hosts
+// func CassandraClusterHosts(hosts []string) Option {
+// 	return &cassandraClusterHostsConfOpt{hosts: hosts}
+// }
 
-type cassandraClusterHostsConfOpt struct {
-	hosts []string
-}
+// type cassandraClusterHostsConfOpt struct {
+// 	hosts []string
+// }
 
-func (opt *cassandraClusterHostsConfOpt) set(m *Manager) error {
-	m.cassandraClusterHosts = opt.hosts
-	return nil
-}
+// func (opt *cassandraClusterHostsConfOpt) set(m *Manager) error {
+// 	m.cassandraClusterHosts = opt.hosts
+// 	return nil
+// }
 
-// CassandraKeySpace retuns an option to set casscandra key space
-func CassandraKeySpace(keyspace string) Option {
-	return &cassandraKeySpaceConfOpt{keyspace: keyspace}
-}
+// // CassandraKeySpace retuns an option to set casscandra key space
+// func CassandraKeySpace(keyspace string) Option {
+// 	return &cassandraKeySpaceConfOpt{keyspace: keyspace}
+// }
 
-type cassandraKeySpaceConfOpt struct {
-	keyspace string
-}
+// type cassandraKeySpaceConfOpt struct {
+// 	keyspace string
+// }
 
-func (opt *cassandraKeySpaceConfOpt) set(m *Manager) error {
-	m.cassandraKeyspace = opt.keyspace
-	return nil
-}
+// func (opt *cassandraKeySpaceConfOpt) set(m *Manager) error {
+// 	m.cassandraKeyspace = opt.keyspace
+// 	return nil
+// }

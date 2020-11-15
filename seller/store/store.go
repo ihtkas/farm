@@ -9,6 +9,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/ihtkas/farm/account"
 	sellerpb "github.com/ihtkas/farm/seller/v1"
 	pgpoolv4 "github.com/jackc/pgx/v4/pgxpool"
 )
@@ -56,7 +57,7 @@ func (s *Storage) AddProduct(ctx context.Context, info *sellerpb.ProductInfo) er
 	}
 
 	timeUUID := gocql.UUIDFromTime(time.Now())
-	userID := ctx.Value("UserID")
+	userID := ctx.Value(account.UserIDKey)
 	query = s.cassandra.Query(insertUserProductCassandraQuery,
 		userID,
 		timeUUID,
@@ -95,6 +96,7 @@ func (s *Storage) GetNearbyProducts(ctx context.Context, loc *sellerpb.ProductLo
 	}
 	return products, nil
 }
+
 func (s *Storage) getNearbyProductsPostgres(ctx context.Context, loc *sellerpb.ProductLocationSearchRequest) ([]*sellerpb.ProductLocationResponse, error) {
 
 	conn, err := s.pg.Acquire(ctx)
@@ -153,7 +155,7 @@ func (s *Storage) fetchProductDetails(ctx context.Context, products []*sellerpb.
 
 // GetProductsList returns the products for specific user and the last timestamp uuid. Last timestamp uuid will be helpful for pagination.
 func (s *Storage) GetProductsList(ctx context.Context, req *sellerpb.ProductsByUserRequest) ([]*sellerpb.Product, string, error) {
-	userID := ctx.Value("UserID")
+	userID := ctx.Value(account.UserIDKey)
 	var q *gocql.Query
 	if req.LastTimestampUuid == "" {
 		q = s.cassandra.Query(selectProductByUserCassandraQuery, userID, req.Limit)

@@ -8,5 +8,24 @@ message Profile {
     account.v1.User user = 1;
 }
 
+message Order {
+    string id = 1;
+    OrderInfo info = 2;
+}
+
+message OrderInfo {
+    string product_id = 1;
+    uint32 quantity = 2;
+    double loc_lat = 3;
+    double loc_lon = 4;
+}
+
+message OrdersByUserRequest {
+    string last_timestamp_uuid = 4;
+    uint32 limit  = 5;
+}
+
+
+
 // from repo root directory
 // protoc -I proto/ proto/buyer/v1/buyer.proto --go_out=paths=source_relative:.

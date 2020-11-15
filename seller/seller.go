@@ -9,6 +9,7 @@ import (
 	"time"
 
 	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/ihtkas/farm/account"
 	"github.com/ihtkas/farm/seller/store"
 	"github.com/ihtkas/farm/utils"
 
@@ -81,7 +82,7 @@ func (m *Manager) Start(store Storage, broker MessageProducer, opts ...Option) e
 // ServeHTTP handles all http APIs for Account management
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO: get the userID from cookie and set it in context
-	ctx := context.WithValue(r.Context(), "UserID", "1105ce66-95da-4e5b-9af2-25976c8f4f5d")
+	ctx := context.WithValue(r.Context(), account.UserIDKey, "1105ce66-95da-4e5b-9af2-25976c8f4f5d")
 	r = r.WithContext(ctx)
 	// ---------------
 

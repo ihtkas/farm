@@ -15,3 +15,10 @@ func (m *Manager) ValidateUser(ctx context.Context, in *accountpb.ValidateUserRe
 	opts ...grpc.CallOption) (*accountpb.ValidateUserResponse, error) {
 	return &accountpb.ValidateUserResponse{}, m.store.ValidateUser(in)
 }
+
+type userIDKey string
+
+func (key userIDKey) String() string { return "userIDKey(" + string(key) + ")" }
+
+// UserIDKey is used to represent key in context to store user's UUID
+const UserIDKey userIDKey = userIDKey("userID")
